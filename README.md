@@ -45,7 +45,7 @@ This project provides a simple automation tool for playing blackjack. It include
 2. **Clone or Download the Repository:**
 
    ```bash
-   git clone https://your-repo-url.git
+   git clone https://github.com/hosfeldli/stake_engine.git
    cd your-repo-directory
    ```
 
