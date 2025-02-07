@@ -46,7 +46,7 @@ This project provides a simple automation tool for playing blackjack. It include
 
    ```bash
    git clone https://github.com/hosfeldli/stake_engine.git
-   cd your-repo-directory
+   cd stake_engine
    ```
 
 3. **Verify the Directory Structure:**
