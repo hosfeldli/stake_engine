@@ -1,5 +1,5 @@
 import argparse
-from build.packages.util import best_move, update_html, notify
+from packages.util import best_move, update_html, notify
 import pyautogui
 import time
 import sys
