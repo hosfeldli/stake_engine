@@ -1,4 +1,13 @@
 #!/bin/bash
+# -----------------------------------------------------------------------------
+# Blackjack Installer Wizard with a Single Progress Bar (macOS Version)
+# -----------------------------------------------------------------------------
+
+# Function to show an error message and exit.
+error_exit() {
+  zenity --error --title="Installation Error" --width=400 --text="$1"
+  exit 1
+}
 
 # Check if Zenity is installed; if not, attempt to install it on macOS via Homebrew.
 if ! command -v zenity > /dev/null 2>&1; then
@@ -11,7 +20,7 @@ if ! command -v zenity > /dev/null 2>&1; then
     brew install zenity
     # Verify installation
     if ! command -v zenity > /dev/null 2>&1; then
-      echo "Failed to install Zenity. Please install it manually using Homebrew (brew install zenity) and re-run the installer."
+      echo "Failed to install Zenity using Homebrew. Please install it manually (brew install zenity) and re-run the installer."
       exit 1
     fi
   else
@@ -23,66 +32,64 @@ fi
 # Prompt the user for their sudo password using Zenity.
 SUDO_PASS=$(zenity --password --title="Sudo Authentication" --text="Enter your sudo password:")
 if [ -z "$SUDO_PASS" ]; then
-  zenity --error --title="Authentication Error" --text="No password provided. Installation aborted."
-  exit 1
+  error_exit "No password provided. Installation aborted."
 fi
 
 # Determine the directory where this installer script is located.
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# UI: Welcome Message
-zenity --info --title="Blackjack Installer Wizard" --width=400 --text="Welcome to the Blackjack Installer Wizard!\n\nThis installer creates an executable command 'blackjack' that wraps:\n    python3 blackjack.py [arguments]\nand places it in /usr/local/bin so that you can run it from anywhere."
-
-# UI: Ask user to proceed
-if ! zenity --question --title="Proceed?" --text="Do you want to proceed with the installation?" --width=400; then
-  zenity --info --title="Installation Aborted" --width=300 --text="Installation aborted by user."
-  exit 1
+# Check if blackjack.py exists in the build directory BEFORE starting the progress bar.
+if [ ! -f "$SCRIPT_DIR/build/blackjack.py" ]; then
+  error_exit "Error: blackjack.py not found in $SCRIPT_DIR/build"
 fi
 
-# Check if blackjack.py exists in the build directory.
-BLACKJACK_FILE="$SCRIPT_DIR/build/blackjack.py"
-if [ ! -f "$BLACKJACK_FILE" ]; then
-  zenity --error --title="Error" --width=400 --text="Error: blackjack.py not found in $SCRIPT_DIR/build"
-  exit 1
-fi
-
-# UI: Inform user about virtual environment and dependencies setup.
-zenity --info --title="Step 1 of 2" --width=400 --text="Setting up Python virtual environment and installing dependencies."
-
-# Change into the build directory.
-cd "$SCRIPT_DIR/build"
-
-# Create and activate virtual environment.
-python3 -m venv venv
-source venv/bin/activate
-
-# Upgrade pip and install dependencies; suppressing output.
-pip install --upgrade pip > /dev/null 2>&1
-pip install -r "$SCRIPT_DIR/build/packages/requirements.txt" > /dev/null 2>&1
-
-# UI: Inform of next step.
-zenity --info --title="Step 2 of 2" --width=400 --text="Creating the 'blackjack' command in /usr/local/bin"
-
-# Define the target path for the blackjack command.
-TARGET="/usr/local/bin/blackjack"
-
-# Create the wrapper script with sudo privileges using Zenity's progress indication.
+# Start the progress bar and execute all installation steps in one continuous flow.
 {
-  echo "10" ; sleep 0.3
-  # Write the base content of the wrapper script using sudo with the provided password.
+  echo "0"
+  echo "# Starting Blackjack Installer Wizard..."
+  sleep 1
+
+  echo "5"
+  echo "# Creating Python virtual environment..."
+  cd "$SCRIPT_DIR/build" || exit 1
+  python3 -m venv venv
+  source venv/bin/activate
+  sleep 1
+
+  echo "25"
+  echo "# Upgrading pip and installing dependencies..."
+  pip install --upgrade pip > /dev/null 2>&1
+  pip install -r "$SCRIPT_DIR/build/packages/requirements.txt" > /dev/null 2>&1
+  sleep 1
+
+  echo "50"
+  echo "# Creating 'blackjack' command in /usr/local/bin..."
+  TARGET="/usr/local/bin/blackjack"
+  # Write the base content to $TARGET using sudo
   echo "$SUDO_PASS" | sudo -S tee "$TARGET" > /dev/null << 'EOF'
 #!/bin/bash
 # blackjack wrapper command: changes to the directory of blackjack.py and passes all arguments to it.
 EOF
-  echo "40" ; sleep 0.3
-  # Determine the absolute directory where blackjack.py is located.
-  OPERATOR_DIR="$(dirname "$BLACKJACK_FILE")"
-  echo "$SUDO_PASS" | sudo -S sh -c "echo 'cd \"$OPERATOR_DIR\" && python3 \"blackjack.py\" \"\$@\" >> log.txt 2>&1' >> \"$TARGET\""
-  echo "70" ; sleep 0.3
-  # Make the command executable.
-  echo "$SUDO_PASS" | sudo -S chmod +x "$TARGET"
-  echo "100" ; sleep 0.3
-} | zenity --progress --title="Installing Blackjack Command" --width=400 --text="Installing, please wait..." --percentage=0 --auto-close
+  sleep 1
 
-# Final message
-zenity --info --title="Installation Complete" --width=400 --text="Installation complete!\n\nYou can now use the command 'blackjack' from the terminal.\n\nFor example:\n    blackjack -s\n\nIf you encounter a 'command not found' error, please ensure that /usr/local/bin is in your PATH."
+  echo "70"
+  echo "# Configuring the blackjack command..."
+  # Determine the absolute directory where blackjack.py is located.
+  OPERATOR_DIR="$(dirname "$SCRIPT_DIR/build/blackjack.py")"
+  echo "$SUDO_PASS" | sudo -S sh -c "echo 'cd \"$OPERATOR_DIR\" && python3 \"blackjack.py\" \"\$@\" >> log.txt 2>&1' >> \"$TARGET\""
+  sleep 1
+
+  echo "85"
+  echo "# Setting executable permissions..."
+  echo "$SUDO_PASS" | sudo -S chmod +x "$TARGET"
+  sleep 1
+
+  echo "100"
+  echo "# Installation Complete!"
+  sleep 1
+} | zenity --progress --title="Installing Blackjack" --width=400 --no-cancel --text="Installing, please wait..."
+
+# Check if the progress command exited successfully.
+if [ $? -ne 0 ]; then
+  error_exit "Installation encountered an error. Please check the logs for more details."
+fi

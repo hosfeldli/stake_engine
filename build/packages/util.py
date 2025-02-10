@@ -58,7 +58,7 @@ def get_score():
         return float(match.group(1).replace(",", ""))
     return None
 
-def get_cards(max_retries=50, delay=0.1):
+def get_cards(max_retries=10, delay=0.1):
     retries = 0
     
     while retries < max_retries:
@@ -74,7 +74,7 @@ def get_cards(max_retries=50, delay=0.1):
                 "dealer": matches[0],
                 "player": matches[1:]
             }
-        
+
         retries += 1
         time.sleep(delay)
 
@@ -138,7 +138,7 @@ def best_move(cards=None):
     cards = get_cards() if cards is None else cards
     if not cards:
         double_down_count = 0
-        return "No cards detected"
+        return "None"
     
     # Make sure a move is allowed.
     if not move_available():
