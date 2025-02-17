@@ -6,58 +6,34 @@ import sys
 from pynput import keyboard
 import configparser
 import os
-from pynput.mouse import Listener as mouse
+import threading
+from pynput import mouse
+from packages.mouse_lib.mouse_listener.listener import start_listener  # Import from the installed package
 
 prog_state = True
 CONFIG_FILE = 'coordinates.ini'
 
-def on_press(key):
-    try:
-        print(f'Key pressed: {key.char}')
-    except AttributeError:
-        print(f'Special key pressed: {key}')
-
-def on_release(key):
-    global prog_state
-    print(f'Key released: {key}')
-    if key == keyboard.Key.esc or key == keyboard.Key.ctrl:
-        print("Exit key pressed. Stopping listener and exiting.")
-        prog_state = False
-        listener.stop()
-        sys.exit(0)  # Gracefully exit the script
-
-# Create a listener and start listening in a separate thread.
-listener = keyboard.Listener(on_press=on_press, on_release=on_release)
-listener.start()
-
-def get_mouse_click():
+def get_mouse_click(timeout=30):
     """
     Wait for a single mouse click and return the (x, y) coordinates.
+    Adds a timeout to prevent indefinite blocking.
+    :param timeout: Maximum time to wait for a mouse click in seconds.
+    :return: Tuple (x, y) representing the coordinates of the mouse click, or None if timeout occurs.
     """
-    coordinate = None
-
-    def on_click(x, y, button, pressed):
-        nonlocal coordinate
-        if pressed:
-            coordinate = (x, y)
-            # Stop the listener after the first click
-            return False
-
-    with mouse(on_click=on_click) as m_listener:
-        m_listener.join()
-    return coordinate
+    return start_listener()
 
 def setup_coordinates():
     """
-    For each move, wait 5 seconds, notify the user to click the desired
-    location on the screen, capture that coordinate, and save it to the
-    configuration file.
+    Captures screen coordinates for different moves with a single-threaded approach
+    and timeout handling.
     """
     moves = ["None", "Insurance", "Stand", "Hit", "Double Down"]
     config = configparser.ConfigParser()
     config.add_section("Coordinates")
+    
     notify("Setting up coordinates for each move.")
-    time.sleep(1)    
+    time.sleep(1)
+
     for move in moves:
         if move == "Insurance":
             notify("\nSet the coordinate for 'Split'")
@@ -65,14 +41,17 @@ def setup_coordinates():
             notify("\nSet the coordinate for 'Play'")
         else:
             notify(f"\nSet the coordinate for '{move}'.")
-        time.sleep(1)
+        
         coordinate = None
-        while not coordinate:
+        while coordinate is None:
+            notify("Click within 30 seconds...")
             coordinate = get_mouse_click()
-        config.set("Coordinates", move, f"{int(coordinate[0])}, {int(coordinate[1])}")
-        notify(f"Coordinate for recorded.")
-    
-    # Save the coordinates to the configuration file.
+            if coordinate:
+                config.set("Coordinates", move, f"{int(coordinate[0])}, {int(coordinate[1])}")
+                notify(f"Coordinate recorded for {move}.")
+            else:
+                notify("No valid click detected. Please try again.")
+
     with open(CONFIG_FILE, "w") as configfile:
         config.write(configfile)
     notify(f"\nConfiguration saved to '{CONFIG_FILE}'.")
@@ -142,7 +121,8 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
 
-    if args.setup:
-        # Run the configuration setup and exit.
+    if args.setup or not os.path.exists(CONFIG_FILE):
+        # Run the configuration setup and exit if setup flag is provided
+        # or if the coordinates.ini file doesn't exist.
         setup_coordinates()
     main()

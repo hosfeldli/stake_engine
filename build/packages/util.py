@@ -3,6 +3,7 @@ import re
 from collections import Counter
 from itertools import combinations
 import time
+import os
 
 card_values = {
     'A': 11,  # Ace can be 1 or 11, but we'll use 11 here and adjust later
@@ -22,21 +23,36 @@ card_values = {
 
 def update_html():
     """
-    Get html of the current page in Safari
-
+    Get HTML of the current page in the selected browser.
+    The selected browser is defined by the environment variable BROWSER_APP.
+    
     Returns:
-    str: HTML content of the current page
+    str: HTML content of the current page or an error message.
     """
-    script = '''
-    tell application "Safari"
-        set pageHTML to do JavaScript "document.documentElement.outerHTML" in front document
-        return pageHTML
-    end tell
-    '''
+    application = os.environ.get("BROWSER_APP", "Safari")
+    
+    if application == "Safari":
+        script = f'''
+        tell application "{application}"
+            set pageHTML to do JavaScript "document.documentElement.outerHTML" in front document
+            return pageHTML
+        end tell
+        '''
+    elif application == "Google Chrome":
+        script = f'''
+        tell application "{application}"
+            set pageHTML to execute front window's active tab javascript "document.documentElement.outerHTML"
+            return pageHTML
+        end tell
+        '''
+    else:
+        return f"Application {application} is not supported."
+    
     result = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
-
-    with open("data/html/page_data.html", "w") as f:
-        f.write(result.stdout)
+    if result.returncode == 0:
+        return result.stdout.strip()
+    else:
+        return f"Error: {result.stderr}"
     
     return result.stdout
 

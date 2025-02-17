@@ -1,0 +1,1 @@
+/Users/liamhosfeld/Documents/Projects/stake_engine/build/packages/mouse_lib/mouse_listener/target/release/libmouse_listener.dylib: /Users/liamhosfeld/Documents/Projects/stake_engine/build/packages/mouse_lib/mouse_listener/src/lib.rs
